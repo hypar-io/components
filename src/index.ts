@@ -8,7 +8,7 @@ function init() {
 	element.id = "view"
 	element.style.width = "100vw"
 	element.style.height = "100vh"
-	element.style.background = "lightgray"
+	element.style.backgroundImage = "linear-gradient(whitesmoke, lightgray)"
 
 	let info = document.createElement('canvas')
 	info.className = "info"
@@ -27,7 +27,9 @@ function init() {
 		view.loadModel(file)
 	}, false)
 
-	let view = new HyparView("view", false, null, null, new Date(), [-118.0,34.0])
+	// let token = "your mapbox token"
+	// let style = "mapbox://styles/mapbox/light-v9"
+	let view = new HyparView("view", false, null, null, new Date(1977,4,12,12,12,12), [-118.0,34.0])
 }
 
 function handleDragOver(evt) {
