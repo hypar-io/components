@@ -1,7 +1,7 @@
 # Hypar
 Hypar tools for generating buildings.
 
-## Getting Starte
+## Getting Started
 ```
 npm install
 ```
