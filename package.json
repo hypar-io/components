@@ -5,8 +5,8 @@
   "private": true,
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "webpack-dev-server --open",
-    "build": "webpack"
+    "start": "webpack-dev-server --open --config ./config/webpack.dev.js",
+    "build": "webpack --config ./config/webpack.prod.js"
   },
   "keywords": [
     "Hypar"
@@ -20,11 +20,13 @@
   },
   "devDependencies": {
     "@types/node": "^11.11.0",
+    "clean-webpack-plugin": "^2.0.0",
     "copy-webpack-plugin": "^5.0.1",
     "ts-loader": "^5.3.3",
     "typescript": "^3.3.3333",
     "webpack": "^4.29.6",
     "webpack-cli": "^3.2.3",
-    "webpack-dev-server": "^3.2.1"
+    "webpack-dev-server": "^3.2.1",
+    "webpack-merge": "^4.2.1"
   }
 }

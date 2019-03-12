@@ -22,12 +22,15 @@ tmpl.innerHTML = `
 import {HyparView} from "./HyparView"
 
 export class HyparViewComponent extends HTMLElement {
-	get latitude() {
+
+	private _view: HyparView
+
+	get latitude(): number {
 		return parseFloat(this.getAttribute('latitude'))
 	}
 
 	set latitude(newValue) {
-		this.setAttribute('latitude', newValue)
+		this.setAttribute('latitude', newValue.toString())
 	}
 
 	get longitude() {
@@ -35,7 +38,7 @@ export class HyparViewComponent extends HTMLElement {
 	}
 
 	set longitude(newValue) {
-		this.setAttribute('longitude', newValue)
+		this.setAttribute('longitude', newValue.toString())
 	}
 
 	get time() {
@@ -43,7 +46,7 @@ export class HyparViewComponent extends HTMLElement {
 	}
 	
 	set time(newValue) {
-		this.setAttribute('time', newValue);
+		this.setAttribute('time', newValue.toString());
 	}
 
 	get model() {
@@ -69,14 +72,14 @@ export class HyparViewComponent extends HTMLElement {
 	connectedCallback() {
 
 		let element = this.shadowRoot.getElementById('view');
-		let info = this.shadowRoot.getElementById('info')
+		let info = <HTMLCanvasElement>this.shadowRoot.getElementById('info')
 		
 		let cameraPosition = null
 		if(location.hash) {
 			cameraPosition = JSON.parse(decodeURIComponent(location.hash.substr(1)))
 		}
-		this.view = new HyparView(false, null, null, new Date(this.time), [this.longitude, this.latitude], element, info, cameraPosition)
-		this.view.loadModelLocal(this.model)
+		this._view = new HyparView(false, null, null, new Date(this.time), [this.longitude, this.latitude], element, info, cameraPosition)
+		this._view.loadModelLocal(this.model)
 	}
 
 	disconnectedCallback() {
@@ -89,11 +92,11 @@ export class HyparViewComponent extends HTMLElement {
 
 	attributeChangedCallback(attrName, oldVal, newVal) {
 		
-		if(this.view && 
+		if(this._view && 
 			(attrName == 'latitude' || 
 			attrName == 'longitude' || 
 			attrName == 'time')) {
-			this.view.setSunPosition(this.longitude, this.latitude, this.time)
+			this._view.setSunPosition(this.longitude, this.latitude, this.time)
 		}
 
 		switch (attrName) {

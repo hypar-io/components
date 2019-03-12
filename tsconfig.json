@@ -4,8 +4,8 @@
         "module": "es2015",
         "target": "es2015",
         "moduleResolution": "node",
-        "allowJs": true,
-        "sourceMap": true
+        "sourceMap": true,
+        "declaration": true
     },
     "include": [
         "./src/**/*"
