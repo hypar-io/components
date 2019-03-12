@@ -1,4 +1,4 @@
-# Hypar
+# Components
 Custom components to build web applications for the Hypar platform.
 
 ## Installation
