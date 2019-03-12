@@ -7,7 +7,7 @@ $ npm install hypar-aec
 ```
 
 ### Motivation
-Hypar is platform that enables the Architecture, Engineering, and Construction industries to build applications which generate, analyze, and test the built environment. These components facilitate the creation of web applications to visualize 3D data, generate options, and execute user-defined functions on the Hypar platform. They're built on open standards like WebGL, glTF, IFC, and GeoJSON.
+Hypar is a platform that enables the Architecture, Engineering, and Construction industries to build applications which generate, analyze, and test the built environment. These components facilitate the creation of web applications to visualize 3D data, generate options, and execute user-defined functions on the Hypar platform. They're built on open standards like WebGL, glTF, IFC, GeoJSON, and Web Components.
 
 ### Caution
 This package is an early beta release of these components. Please do not use them in production applications.
