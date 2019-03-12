@@ -1,8 +1,16 @@
-# Hypar View
-The Hypar View is the 3D visualization component for the Hypar platform.
+# Hypar
+Hypar tools for generating buildings.
 
-# Building
-`npm build`
+## Building
+```
+npm run build
+````
 
-# Running the Dev Server
-`npm start`
+## Running the Dev Server
+The development server will start and open a browser to `localhost:9000`. You can edit `test/index.html` live.  
+```
+npm start
+```
+
+## Copyright
+© Hypar, Inc. 2019
