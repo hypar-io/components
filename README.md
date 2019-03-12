@@ -15,7 +15,16 @@ This package is an early beta release of these components. Please do not use the
 ### Common Usage
 Add the following to the head of the your html document:
 ```html
-<script src="unpkg.com/hypar-aec@0.0.1-beta1/hypar-aec.js"></script>
+<!doctype html>
+<html>
+  <head>
+    <title>Hypar Components Example</title>
+    <script src="unpkg.com/hypar-aec@0.0.1-beta1/hypar-aec.js"></script>
+  </head>
+  <body>
+      <hypar-view time="June 21, 2019 12:00:00 " longitude="-118.0" latitude="34.0" model="/models/Truss.glb"></hypar-view>
+  </body>
+</html>
 ```
 
 ### Development
