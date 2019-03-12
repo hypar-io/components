@@ -1,7 +1,7 @@
 {
   "name": "hypar-aec",
-  "version": "1.0.0",
-  "description": "Components for the Hypar platform.",
+  "version": "0.0.1-beta1",
+  "description": "Components to build applications on the Hypar platform.",
   "private": true,
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
@@ -9,10 +9,14 @@
     "build": "webpack --config ./config/webpack.prod.js"
   },
   "keywords": [
-    "Hypar"
+    "Hypar",
+    "Architecture",
+    "Engineering",
+    "Construction",
+    "AEC"
   ],
   "author": "Hypar Inc.",
-  "license": "ISC",
+  "license": "MIT",
   "dependencies": {
     "jszip": "^3.2.0",
     "suncalc": "^1.8.0",
@@ -21,7 +25,6 @@
   "devDependencies": {
     "@types/node": "^11.11.0",
     "clean-webpack-plugin": "^2.0.0",
-    "copy-webpack-plugin": "^5.0.1",
     "ts-loader": "^5.3.3",
     "typescript": "^3.3.3333",
     "webpack": "^4.29.6",

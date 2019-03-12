@@ -1,6 +1,11 @@
 # Hypar
 Hypar tools for generating buildings.
 
+## Getting Starte
+```
+npm install
+```
+
 ## Building
 ```
 npm run build
@@ -11,6 +16,3 @@ The development server will start and open a browser to `localhost:9000`. You ca
 ```
 npm start
 ```
-
-## Copyright
-© Hypar, Inc. 2019
