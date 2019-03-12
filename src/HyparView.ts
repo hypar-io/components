@@ -14,7 +14,7 @@ let oc = require("../node_modules/three/examples/js/controls/OrbitControls.js")
 let gltf = require("../node_modules/three/examples/js/loaders/GLTFLoader.js")
 
 export class HyparView {
-	private _camera: PerspectiveCamera
+	private _camera: PerspectiveCamera = null
 	private _scene: Scene
 	private _gltfScene: Scene
 	private _mapScene: Scene
@@ -28,7 +28,7 @@ export class HyparView {
 	private _hasBeenFit = false
 	private _mousedown = 0
 	private _navigating = false
-	private _info = <HTMLCanvasElement>document.getElementsByClassName("info")[0]
+	private _info: HTMLCanvasElement
 	private _onScreenUpdate: any
 	private _labelParameter = ""
 	private _loadTopography = false
@@ -53,15 +53,21 @@ export class HyparView {
 	 * @param mapboxStyleUrl A mapbox style url for loading location data.
 	 * @param defaultDate The date used to set the sun's default position.
 	 * @param origin The world origin of the model. Described as [longitude,latitude]
+	 * @param container The div where the view will be contained.
+	 * @param info The canvas where element data will be drawn.
 	 */
-	constructor(uid: string,
-		loadTopography: boolean,
+	constructor(loadTopography: boolean,
 		mapboxAccessToken: string,
 		mapboxStyleUrl: string,
 		defaultDate: Date,
-		origin: [number,number]) {
-
-		this.initScene(uid)
+		origin: [number,number], 
+		container: HTMLElement, 
+		info: HTMLCanvasElement,
+		cameraPosition: {eye:Vector3, target:Vector3}) {
+		
+		this._container = container
+		this._info = info
+		this.initScene()
 		this.animate()
 
 		this._mapboxAccessToken = mapboxAccessToken
@@ -76,16 +82,26 @@ export class HyparView {
 
 		this._mapScene = new Scene()
 		this._scene.add(this._mapScene)
+
+		if(cameraPosition) {
+			this._camera.position.set(cameraPosition.eye.x, cameraPosition.eye.y, cameraPosition.eye.z)
+			this._controls.target.set(cameraPosition.target.x, cameraPosition.target.y, cameraPosition.target.z)
+			this._controls.update()
+		}
 	}
 
 	/**
 	 * Set the position of the sun.
 	 * @param longitude The longitude of the site.
 	 * @param latitude The latitude of the site.
-	 * @param dayPercent The percentage of the day between 0.0 and 1.0 from sunrise to sunset.
 	 * @param date The date.
 	 */
-	setSunPosition(longitude: number, latitude: number, date: Date, dayPercent: number) {
+	setSunPosition(longitude: number, latitude: number, date: Date) {
+		if(this._bounds == null) {
+			console.log("Cannot set the sun position, as the scene bounds have not yet been set.")
+			return
+		}
+
 		let d = this._bounds.radius
 		let center = this._bounds.center
 		let r = this._bounds.radius
@@ -100,13 +116,11 @@ export class HyparView {
 			this._directionalLight.shadow.bias = -0.00001
 			let map: any = this._directionalLight.shadow.map
 			map.dispose()
+			map = null
 			this._directionalLight.shadow.map = null
 		}
-
-		let times = SunCalc.getTimes(date, latitude, longitude)
-
-		let time = new Date(times.sunrise.getTime() + (times.sunset.getTime() - times.sunrise.getTime()) * dayPercent)
-		let sunPosition = SunCalc.getPosition(time, latitude, longitude)
+		
+		let sunPosition = SunCalc.getPosition(date, latitude, longitude)
 
 		// https://www.mathworks.com/help/phased/ug/spherical-coordinates.html
 		// We correct the angle here as SunCalc measures azimuth from S to W.
@@ -129,94 +143,171 @@ export class HyparView {
 	}
 
 	/**
-	 * Load a glTF model.
-	 * @param modelData A binary blob containing the model data.
+	 * Load a .glb file from a path.
+	 * @param path The relative path to a .glb file.
 	 */
-	loadModel = (modelData: Blob) => {
+	loadModelLocal(path: string) {
+		let loader = new w.THREE.GLTFLoader()
+		loader.load(
+			path,
+			(gltf) => {
+
+				let scene = gltf.scene
+
+				scene.traverse((o) => {
+					if (o instanceof THREE.Object3D) {
+						if (o instanceof THREE.Mesh && (<THREE.Material>o.material).opacity == 1.0) {
+							if (this._enableShadows) {
+								o.castShadow = true
+								o.receiveShadow = true
+							}
+						}
+					}
+				})
+
+				let box = new Box3().setFromObject(scene)
+
+				if (!this._hasBeenFit) {
+					this.zoomToFit(box)
+					this._hasBeenFit = true
+				}
+
+				this._bounds = new Sphere().setFromPoints([box.min, box.max])
+				this.setDefaultSunPosition()
+
+				this._gltfScene = scene
+				this._scene.add(this._gltfScene)
+				
+				let event = new CustomEvent('model-loaded', { detail: 'The model has been loaded.' })
+
+				if (this._loadTopography) {
+					let tileIds = null
+					let zoom = 17
+					if (this._loadTopography) {
+						tileIds = MapboxUtilities.getTileIdsForPosition(this._origin, zoom, 3)
+					} else {
+						tileIds = MapboxUtilities.getTileIdsForPosition(this._origin, zoom, 5)
+					}
+					let sideLength = MapboxUtilities.getTileSizeMeters(zoom)
+					let originTile = (tileIds.length - 1) / 2
+					let offset = MapboxUtilities.getOffsetFromCenterToPointMeters(tileIds[originTile][0], tileIds[originTile][1], this._origin, zoom)
+					let resolutionExponent = 3
+					this.loadMapTiles(this._mapScene, zoom, tileIds, sideLength, offset, 512, resolutionExponent).then(()=>{
+						document.dispatchEvent(event)
+					}).catch((reason)=>{
+						console.debug(reason)
+					})
+				} else {
+					document.dispatchEvent(event)
+				}
+
+				
+				this.drawLabels(this._labelParameter)
+			},
+			(xhr: { loaded: number; total: number; }) => {
+				console.log((xhr.loaded / xhr.total * 100) + '% loaded')
+			},
+			(error: any) => {
+				console.warn(error)
+			}
+		)
+	}
+
+	/**
+	 * Load a binary glTF model.
+	 * @param modelData A blob containing the model data.
+	 */
+	loadModel(modelData: Blob) {
+		let blobs = new Map<string, Blob>()
+		blobs.set("model0.glb", modelData)
+
+		let objectURLs = new Array<string>()
+		let manager: any = new LoadingManager()
+		manager.setURLModifier((url) => {
+			url = w.URL.createObjectURL(blobs.get(url))
+			objectURLs.push(url)
+			return url
+		})
+
+		let loader = new w.THREE.GLTFLoader(manager)
+		loader.load(
+			"model0.glb",
+			(gltf) => {
+
+				let scene = gltf.scene
+
+				scene.traverse((o) => {
+					if (o instanceof THREE.Object3D) {
+						if (o instanceof THREE.Mesh && (<THREE.Material>o.material).opacity == 1.0) {
+							if (this._enableShadows) {
+								o.castShadow = true
+								o.receiveShadow = true
+							}
+						}
+					}
+				})
+
+				let box = new Box3().setFromObject(scene)
+
+				if (!this._hasBeenFit) {
+					this.zoomToFit(box)
+					this._hasBeenFit = true
+				}
+
+				this._bounds = new Sphere().setFromPoints([box.min, box.max])
+				this.setDefaultSunPosition()
+
+				objectURLs.forEach((url) => w.URL.revokeObjectURL(url))
+
+				this._gltfScene = scene
+				this._scene.add(this._gltfScene)
+				
+				let event = new CustomEvent('model-loaded', { detail: 'The model has been loaded.' })
+
+				if (this._loadTopography) {
+					let tileIds = null
+					let zoom = 17
+					if (this._loadTopography) {
+						tileIds = MapboxUtilities.getTileIdsForPosition(this._origin, zoom, 3)
+					} else {
+						tileIds = MapboxUtilities.getTileIdsForPosition(this._origin, zoom, 5)
+					}
+					let sideLength = MapboxUtilities.getTileSizeMeters(zoom)
+					let originTile = (tileIds.length - 1) / 2
+					let offset = MapboxUtilities.getOffsetFromCenterToPointMeters(tileIds[originTile][0], tileIds[originTile][1], this._origin, zoom)
+					let resolutionExponent = 3
+					this.loadMapTiles(this._mapScene, zoom, tileIds, sideLength, offset, 512, resolutionExponent).then(()=>{
+						document.dispatchEvent(event)
+					}).catch((reason)=>{
+						console.debug(reason)
+					})
+				} else {
+					document.dispatchEvent(event)
+				}
+
+				
+				this.drawLabels(this._labelParameter)
+			},
+			(xhr: { loaded: number; total: number; }) => {
+				console.log((xhr.loaded / xhr.total * 100) + '% loaded')
+			},
+			(error: any) => {
+				console.warn(error)
+			}
+		)
+	}
+
+	/**
+	 * Load a binary glTF model from a zip.
+	 * @param modelData A blob containing the zipped model data.
+	 */
+	loadModelZip(modelData: Blob) {
 		let z = new JSZip()
 		z.loadAsync(modelData, { base64: false }).then((contents: JSZip) => {
 			Promise.all([
 				contents.files["model0.glb"].async("blob")
 			]).then((result) => {
-				let blobs = new Map<string, Blob>()
-				blobs.set("model0.glb", new Blob([result[0]]))
-
-				let objectURLs = new Array<string>()
-				let manager: any = new LoadingManager()
-				manager.setURLModifier((url) => {
-					url = w.URL.createObjectURL(blobs.get(url))
-					objectURLs.push(url)
-					return url
-				})
-
-				let loader = new w.THREE.GLTFLoader(manager)
-				loader.load(
-					"model0.glb",
-					(gltf) => {
-
-						let scene = gltf.scene
-
-						scene.traverse((o) => {
-							if (o instanceof THREE.Object3D) {
-								if (o instanceof THREE.Mesh && (<THREE.Material>o.material).opacity == 1.0) {
-									if (this._enableShadows) {
-										o.castShadow = true
-										o.receiveShadow = true
-									}
-								}
-							}
-						})
-
-						let box = new Box3().setFromObject(scene)
-
-						if (!this._hasBeenFit) {
-							this.zoomToFit(box)
-							this._hasBeenFit = true
-						}
-
-						this._bounds = new Sphere().setFromPoints([box.min, box.max])
-						this.setDefaultSunPosition()
-
-						objectURLs.forEach((url) => w.URL.revokeObjectURL(url))
-
-						this._gltfScene = scene
-						this._scene.add(this._gltfScene)
-						
-						let event = new CustomEvent('model-loaded', { detail: 'The model has been loaded.' })
-
-						if (this._loadTopography) {
-							let tileIds = null
-							let zoom = 17
-							if (this._loadTopography) {
-								tileIds = MapboxUtilities.getTileIdsForPosition(this._origin, zoom, 3)
-							} else {
-								tileIds = MapboxUtilities.getTileIdsForPosition(this._origin, zoom, 5)
-							}
-							let sideLength = MapboxUtilities.getTileSizeMeters(zoom)
-							let originTile = (tileIds.length - 1) / 2
-							let offset = MapboxUtilities.getOffsetFromCenterToPointMeters(tileIds[originTile][0], tileIds[originTile][1], this._origin, zoom)
-							let resolutionExponent = 3
-							this.loadMapTiles(this._mapScene, zoom, tileIds, sideLength, offset, 512, resolutionExponent).then(()=>{
-								console.debug("Dispatching model loaded event after map tile load.")
-								document.dispatchEvent(event)
-							}).catch((reason)=>{
-								console.debug(reason)
-							})
-						} else {
-							console.debug("Dispatching model loaded event after model load.")
-							document.dispatchEvent(event)
-						}
-
-						
-						this.drawLabels(this._labelParameter)
-					},
-					(xhr: { loaded: number; total: number; }) => {
-						console.log((xhr.loaded / xhr.total * 100) + '% loaded')
-					},
-					(error: any) => {
-						console.warn(error)
-					}
-				)
+				this.loadModel(result[0])
 			})
 		})
 	}
@@ -266,7 +357,7 @@ export class HyparView {
 	}
 
 	private setDefaultSunPosition() {
-		this.setSunPosition(this._origin[0], this._origin[1], this._defaultDate, 0.65)
+		this.setSunPosition(this._origin[0], this._origin[1], this._defaultDate)
 	}
 
 	private addEventListeners() {
@@ -281,23 +372,19 @@ export class HyparView {
 			--this._mousedown
 			this._navigating = this._mousedown > 0 ? true : false
 			this.drawLabels(this._labelParameter)
+			
+			let hash = {eye: this._camera.position, target: this._controls.target}
+			window.location.hash = `${JSON.stringify(hash)}`
 		})
 		this._container.addEventListener('mousemove', () => {
 			this._navigating = this._mousedown > 0 ? true : false
 		})
 		this._container.addEventListener('wheel', () => {
 			this.drawLabels(this._labelParameter)
-		})
+		}, {capture:false, passive:false})
 	}
 
-	private initScene = (uid: string) => {
-		// dom
-		let div = document.getElementById(uid)
-		if (!div) {
-			throw "Could not find the scene element."
-		}
-		this._container = div
-
+	private initScene = () => {
 		this._camera = new PerspectiveCamera(70, this._container.clientWidth / this._container.clientHeight, 1.0, 500000.0)
 
 		// controls
@@ -353,8 +440,8 @@ export class HyparView {
 
 		if (this._enableShadows) {
 			light.castShadow = true
-			light.shadow.mapSize.width = 2048
-			light.shadow.mapSize.height = 2048
+			light.shadow.mapSize.width = 4096
+			light.shadow.mapSize.height = 4096
 
 			let d = 50
 			light.shadow.camera.left = -d
@@ -402,6 +489,10 @@ export class HyparView {
 	}
 
 	private zoomToFit(box: Box3) {
+		if(location.hash) {
+			console.debug("Camera target has been set in the hash. Zoom to fit cancelled.")
+			return
+		}
 		let sphere = new Sphere().setFromPoints([box.min, box.max])
 		let r = sphere.radius * 1.25
 		let center = sphere.center

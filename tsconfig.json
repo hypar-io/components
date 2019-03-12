@@ -1,16 +1,17 @@
 {
     "compilerOptions": {
-        "outDir": "./built/",
-        "sourceMap": true,
-        "noImplicitReturns": true,
+        "outDir": "./dist",
         "module": "es2015",
-        "moduleResolution": "node",
         "target": "es2015",
-        "types": ["node"],
-        "strictPropertyInitialization":false,
-        "experimentalDecorators": true,
+        "moduleResolution": "node",
+        "allowJs": true,
+        "sourceMap": true
     },
     "include": [
         "./src/**/*"
+    ],
+    "exclude": [
+        "node_modules",
+        "dist"
     ]
 }
