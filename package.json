@@ -3,6 +3,9 @@
   "version": "0.0.1-beta1",
   "description": "Components to build applications on the Hypar platform.",
   "private": true,
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "webpack-dev-server --open --config ./config/webpack.dev.js",
